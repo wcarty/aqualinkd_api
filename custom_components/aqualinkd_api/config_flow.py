@@ -46,36 +46,36 @@ class AqualinkDOptionsFlow(config_entries.OptionsFlow):
 
             opts = self._config_entry.options
             data = self._config_entry.data
-            
+
             _LOGGER.debug("Building schema with opts: %s and data: %s", opts, data)
-            
+
             # Use absolute basic types to prevent frontend rendering 500 errors
             schema = vol.Schema({
                 vol.Optional(
-                    CONF_POLL_INTERVAL, 
+                    CONF_POLL_INTERVAL,
                     default=int(opts.get(CONF_POLL_INTERVAL, data.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)))
                 ): int,
                 vol.Optional(
-                    CONF_STALE_TIMEOUT, 
+                    CONF_STALE_TIMEOUT,
                     default=int(opts.get(CONF_STALE_TIMEOUT, data.get(CONF_STALE_TIMEOUT, DEFAULT_STALE_TIMEOUT)))
                 ): int,
                 vol.Optional(
-                    CONF_FILTER_PUMP_ZEROS, 
+                    CONF_FILTER_PUMP_ZEROS,
                     default=bool(opts.get(CONF_FILTER_PUMP_ZEROS, data.get(CONF_FILTER_PUMP_ZEROS, DEFAULT_FILTER_PUMP_ZEROS)))
                 ): bool,
                 vol.Optional(
-                    CONF_ZERO_GRACE_PERIOD, 
+                    CONF_ZERO_GRACE_PERIOD,
                     default=int(opts.get(CONF_ZERO_GRACE_PERIOD, data.get(CONF_ZERO_GRACE_PERIOD, DEFAULT_ZERO_GRACE_PERIOD)))
                 ): int,
                 vol.Optional(
-                    CONF_CREATE_RAW_SENSORS, 
+                    CONF_CREATE_RAW_SENSORS,
                     default=bool(opts.get(CONF_CREATE_RAW_SENSORS, data.get(CONF_CREATE_RAW_SENSORS, DEFAULT_CREATE_RAW_SENSORS)))
                 ): bool,
             })
-            
+
             _LOGGER.debug("Showing form with schema: %s", schema)
             return self.async_show_form(step_id="init", data_schema=schema)
-            
+
         except Exception as exc:
             _LOGGER.exception("CRITICAL ERROR IN OPTIONS FLOW: %s", exc)
             # Re-raise so HA still knows it failed, but we get the log!
@@ -103,7 +103,7 @@ class AqualinkDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             else:
                 return self.async_create_entry(title=f"AqualinkD API {user_input[CONF_HOST]}", data=user_input)
-        
+
         schema = vol.Schema({
             vol.Required(CONF_HOST): str,
             vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
