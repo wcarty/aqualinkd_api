@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to AqualinkD",
+        "description": "Enter your local AqualinkD API connection details.",
+        "data": {
+          "host": "IP Address or Hostname",
+          "port": "Port",
+          "scheme": "Scheme (http/https)",
+          "poll_interval": "Polling interval in seconds",
+          "verify_ssl": "Verify SSL certificates",
+          "filter_pump_zeros": "Filter temporary pump zero telemetry",
+          "zero_grace_period": "Zero grace period in seconds",
+          "stale_timeout": "Telemetry stale timeout in seconds",
+          "create_raw_sensors": "Create raw diagnostic sensors"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to AqualinkD. Check IP address, port, and API availability."
+    },
+    "abort": {
+      "already_configured": "This AqualinkD instance is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AqualinkD API Options",
+        "data": {
+          "poll_interval": "Polling interval in seconds",
+          "stale_timeout": "Telemetry stale timeout in seconds",
+          "filter_pump_zeros": "Filter temporary pump zero telemetry",
+          "zero_grace_period": "Zero grace period in seconds",
+          "create_raw_sensors": "Create raw diagnostic sensors"
+        }
+      }
+    }
+  }
+}
