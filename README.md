@@ -21,6 +21,16 @@ This project provides a custom Home Assistant integration that communicates dire
 - **Intelligent Telemetry**: Pump data (RPM, Watts, GPM) with zero-filtering when off
 - **Live Configuration**: Adjust polling intervals and timeouts from Home Assistant UI
 
+## 🚀 AI-Powered Development
+
+This project leverages AI to maintain high code quality and security standards. 
+
+- **AI Code Review**: Every Pull Request is reviewed by GPT-4o for logic, performance, and security.
+- **Automated Security**: Integrated CodeQL scanning and AI-driven vulnerability detection.
+- **Auto-Updates**: Dependabot keeps dependencies updated and secure.
+
+For more details on our development practices, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## 📁 Repository Structure
 
 ```
