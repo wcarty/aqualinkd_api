@@ -37,8 +37,8 @@ for source_data in [data2, data1]:  # Try loading the bad one first
                 if slugify(existing_name) == name_slug:
                     target = existing_data
                     break
-        
-            if target:
+
+        if target:
             best_name = str(target.get("name", ""))
             target.update(dev_data)
             new_name = str(target.get("name", ""))

@@ -150,15 +150,23 @@ class AqualinkDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 return self.async_create_entry(title=f"AqualinkD API {user_input[CONF_HOST]}", data=user_input)
 
-        schema = vol.Schema({
-            vol.Required(CONF_HOST): str,
-            vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
-            vol.Optional(CONF_SCHEME, default=DEFAULT_SCHEME): vol.In(["http", "https"]),
-            vol.Optional(CONF_POLL_INTERVAL, default=DEFAULT_POLL_INTERVAL): vol.All(int, vol.Range(min=2, max=300)),
-            vol.Optional(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL): bool,
-            vol.Optional(CONF_FILTER_PUMP_ZEROS, default=DEFAULT_FILTER_PUMP_ZEROS): bool,
-            vol.Optional(CONF_ZERO_GRACE_PERIOD, default=DEFAULT_ZERO_GRACE_PERIOD): vol.All(int, vol.Range(min=5, max=600)),
-            vol.Optional(CONF_STALE_TIMEOUT, default=DEFAULT_STALE_TIMEOUT): vol.All(int, vol.Range(min=30, max=1800)),
-            vol.Optional(CONF_CREATE_RAW_SENSORS, default=DEFAULT_CREATE_RAW_SENSORS): bool,
-        })
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_HOST): str,
+                vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
+                vol.Optional(CONF_SCHEME, default=DEFAULT_SCHEME): vol.In(["http", "https"]),
+                vol.Optional(
+                    CONF_POLL_INTERVAL, default=DEFAULT_POLL_INTERVAL
+                ): vol.All(int, vol.Range(min=2, max=300)),
+                vol.Optional(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL): bool,
+                vol.Optional(CONF_FILTER_PUMP_ZEROS, default=DEFAULT_FILTER_PUMP_ZEROS): bool,
+                vol.Optional(
+                    CONF_ZERO_GRACE_PERIOD, default=DEFAULT_ZERO_GRACE_PERIOD
+                ): vol.All(int, vol.Range(min=5, max=600)),
+                vol.Optional(
+                    CONF_STALE_TIMEOUT, default=DEFAULT_STALE_TIMEOUT
+                ): vol.All(int, vol.Range(min=30, max=1800)),
+                vol.Optional(CONF_CREATE_RAW_SENSORS, default=DEFAULT_CREATE_RAW_SENSORS): bool,
+            }
+        )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)

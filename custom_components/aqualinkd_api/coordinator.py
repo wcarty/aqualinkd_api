@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+import asyncio
 import logging
 from typing import Any
 
@@ -106,7 +107,11 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
                         
                         target.update(dev_data)
                         
-                        if existing_state in ("on", "1", "enabled", "true") and new_state in ("off", "0", "disabled", "false"):
+                        if (
+                            existing_state
+                            in ("on", "1", "enabled", "true")
+                            and new_state in ("off", "0", "disabled", "false")
+                        ):
                             target["state"] = existing_state
                             
                         # Keep the "prettiest" name
