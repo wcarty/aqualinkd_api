@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest an enhancement or new feature.
+title: "[FEATURE] "
+labels: [enhancement]
+body:
+  - type: text
+    id: summary
+    attributes:
+      label: One-line summary
+      description: Short description of the requested feature.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this feature needed? Describe the use-case.
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How would you implement this? Include examples if possible.

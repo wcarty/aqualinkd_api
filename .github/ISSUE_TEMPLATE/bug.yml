@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible bug in the integration.
+title: "[BUG] "
+labels: [bug]
+body:
+  - type: text
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Describe the steps needed to reproduce the bug.
+      placeholder: |
+        1. Step one
+        2. Step two
+        3. Expected vs actual
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened, including logs or tracebacks if available.
+  - type: dropdown
+    id: version
+    attributes:
+      label: AqualinkD API version
+      options:
+        - value: unknown
+          label: "Unknown"
+        - value: latest
+          label: "Latest"
+        - value: pinned
+          label: "Pinned"
