@@ -1,0 +1,4 @@
+__pycache__/
+homeassistant/
+aiohttp.py
+*.pyc
