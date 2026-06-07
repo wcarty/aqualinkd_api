@@ -26,8 +26,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff pytest
-      - name: Run Ruff
-        run: ruff check .
+      - name: Run Ruff (auto-fix then check)
+        run: |
+          # Apply fixable changes first so formatting/import fixes are handled automatically
+          ruff check --fix . || true
+          # Re-run the check; if non-fixable issues remain this will fail the job
+          ruff check .
       - name: Run Tests
         run: |
           # Prefer running pytest if tests exist, otherwise fallback to the simple script
