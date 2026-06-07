@@ -98,53 +98,55 @@ def flatten_devices(data: dict[str, Any] | list[Any]) -> dict[str, dict[str, Any
             source = data["status"]
             
     devices: dict[str, dict[str, Any]] = {}
-    
-    # Helper to check if a name should be ignored
+
     def _is_ignored(name_or_id: str) -> bool:
         if not name_or_id:
             return False
         nl = str(name_or_id).lower()
         return "aux_b" in nl or "aux_v" in nl or "aux_s" in nl
 
-    # Pre-process nested containers if they exist
-    if isinstance(data, dict):
+    def _extract_containers(d: dict[str, Any]) -> None:
         for container in ("leds", "timers", "sensors"):
-            if container in data and isinstance(data[container], dict):
+            if container in d and isinstance(d[container], dict):
                 _LOGGER.debug("Extracting devices from nested container: %s", container)
-                for k, v in data[container].items():
+                for k, v in d[container].items():
                     if _is_ignored(k):
                         continue
-                    # Create a simple device entry from the container item
-                    # Use the container key as an `id` as well to aid merging
                     devices[str(k)] = {"id": k, "name": k, "state": v}
 
-    if isinstance(source, list):
-        _LOGGER.debug("Processing list source with %d items", len(source))
-        for item in source:
+    def _process_list_source(src: list[Any]) -> None:
+        _LOGGER.debug("Processing list source with %d items", len(src))
+        for item in src:
             if isinstance(item, dict):
-                # Use name, then label, then id, then topic
                 name = item.get("name") or item.get("label") or item.get("id") or item.get("topic")
                 if name and not _is_ignored(name) and not _is_ignored(item.get("id")):
                     devices[str(name)] = dict(item)
             elif item is not None and not _is_ignored(str(item)):
                 devices[str(item)] = {"name": str(item), "state": item}
-                
-    elif isinstance(source, dict):
-        _LOGGER.debug("Processing dict source with %d keys", len(source))
-        for key, value in source.items():
+
+    def _process_dict_source(src: dict[str, Any]) -> None:
+        _LOGGER.debug("Processing dict source with %d keys", len(src))
+        for key, value in src.items():
             if _is_ignored(key):
                 continue
             if isinstance(value, dict):
                 if _is_ignored(value.get("id")) or _is_ignored(value.get("name")):
                     continue
                 device = dict(value)
-                # Force the use of 'name' or 'label' if it exists inside the dict, otherwise use the key
                 preferred_name = device.get("name") or device.get("label") or key
                 device["name"] = preferred_name
                 devices[str(key)] = device
             elif key not in IGNORED_KEYS:
-                # Avoid adding global metadata or known redundant status fields as new devices
                 devices[str(key)] = {"name": key, "state": value}
+
+    # Pre-process nested containers if they exist
+    if isinstance(data, dict):
+        _extract_containers(data)
+
+    if isinstance(source, list):
+        _process_list_source(source)
+    elif isinstance(source, dict):
+        _process_dict_source(source)
 
     _LOGGER.debug("Flattened into %d devices: %s", len(devices), list(devices.keys()))
     return devices
