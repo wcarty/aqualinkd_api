@@ -36,10 +36,17 @@ We use **Ruff** for extremely fast linting and formatting.
 - Auto-fix issues: `ruff check --fix .`
 
 ### Testing
-Currently, we have basic logic tests in `custom_components/aqualinkd_api/test_merge.py`.
-- Run tests: `python custom_components/aqualinkd_api/test_merge.py`
+You can run tests locally using a virtual environment and `dev-requirements.txt`.
 
-*Future goal: Migrate to a full `pytest` suite.*
+```powershell
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r dev-requirements.txt
+.venv\Scripts\python.exe -m ruff check . --fix
+.venv\Scripts\python.exe -m pytest -q
+```
+
+Tests are lightweight and avoid depending on Home Assistant; they exercise core logic in `custom_components/aqualinkd_api`.
 
 ## 🔒 Security Best Practices
 
