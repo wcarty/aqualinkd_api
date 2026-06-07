@@ -21,31 +21,34 @@ GPM_KEYS = ("gpm", "GPM", "Pump_GPM", "flow", "Flow")
 STATE_KEYS = ("state", "status", "enabled", "on", "value")
 
 
-def _merge_flat_source(flat_source: dict[str, dict[str, Any]], id_map: dict[str, dict[str, Any]], name_map: dict[str, dict[str, Any]]) -> None:
+def _find_merge_target(
+    name: str, dev_id: str | None, id_map: dict[str, dict[str, Any]], name_map: dict[str, dict[str, Any]]
+) -> dict[str, Any] | None:
+    if dev_id and dev_id in id_map:
+        return id_map[dev_id]
+    if dev_id and dev_id in name_map:
+        return name_map[dev_id]
+    if name in id_map:
+        return id_map[name]
+    if name in name_map:
+        return name_map[name]
+
+    name_slug = slugify(name)
+    for existing_name, existing_data in name_map.items():
+        if slugify(existing_name) == name_slug:
+            return existing_data
+    return None
+
+
+def _merge_flat_source(
+    flat_source: dict[str, dict[str, Any]],
+    id_map: dict[str, dict[str, Any]],
+    name_map: dict[str, dict[str, Any]],
+) -> None:
     """Merge a single flattened source into id/name maps."""
     for name, dev_data in flat_source.items():
         dev_id = dev_data.get("id")
-
-        # 1. Try to match by ID
-        target = None
-        if dev_id and dev_id in id_map:
-            target = id_map[dev_id]
-        # 2. Try to match if the explicit ID was previously used as a Name
-        elif dev_id and dev_id in name_map:
-            target = name_map[dev_id]
-        # 3. Try to match if the incoming Name is actually a known ID
-        elif name in id_map:
-            target = id_map[name]
-        # 4. Try to match by Name
-        elif name in name_map:
-            target = name_map[name]
-        # 5. Try to match by slugified name
-        else:
-            name_slug = slugify(name)
-            for existing_name, existing_data in name_map.items():
-                if slugify(existing_name) == name_slug:
-                    target = existing_data
-                    break
+        target = _find_merge_target(name, dev_id, id_map, name_map)
 
         if target:
             existing_state = str(target.get("state", "")).lower()

@@ -87,15 +87,27 @@ def _process_device_attribute(
     dev_type = str(dev.get("type", "")).lower()
     _LOGGER.debug("Processing device %s (type: %s) for sensors attr %s", name, dev_type, key)
 
-    if key in {"name", "id", "type", "type_ext", "int_status", "timer_active"} or isinstance(
-        val, (dict, list)
-    ):
+    if _should_skip_attribute(name, name_l, key, val, dev, handled_attrs):
         return
 
+    if _determine_is_sensor(name, name_l, key, val, dev, handled_attrs):
+        _LOGGER.debug("Adding sensor for %s attribute %s", name, key)
+        entities.append(GenericDeviceSensor(coordinator, name, str(key)))
+        handled_attrs.add((name, key))
+
+
+def _should_skip_attribute(
+    name: str,
+    name_l: str,
+    key: str,
+    val: Any,
+    dev: dict[str, Any],
+    handled_attrs: set[tuple[str, str]],
+) -> bool:
+    if key in {"name", "id", "type", "type_ext", "int_status", "timer_active"} or isinstance(val, (dict, list)):
+        return True
     if (name, key) in handled_attrs:
-        return
-
-    # If this device has both 'state' and 'value', 'state' is usually just 'on/off'
+        return True
     has_real_value = "value" in dev or "spvalue" in dev or "Pump_RPM" in dev
     if has_real_value and key in {"state", "status", "int_status"}:
         _LOGGER.debug(
@@ -103,54 +115,52 @@ def _process_device_attribute(
             key,
             name,
         )
-        return
+        return True
+    if "heater" in name_l:
+        _LOGGER.debug("Skipping heater sensor for %s attribute %s (handled by climate)", name, key)
+        return True
+    key_l = str(key).lower()
+    if "aux" in name_l or "aux" in key_l:
+        _LOGGER.debug("Skipping redundant Aux sensor for %s attribute %s", name, key)
+        return True
+    if "display" in key_l:
+        _LOGGER.debug("Skipping 'display' sensor for %s attribute %s", name, key)
+        return True
+    return False
 
+
+def _determine_is_sensor(
+    name: str,
+    name_l: str,
+    key: str,
+    val: Any,
+    dev: dict[str, Any],
+    handled_attrs: set[tuple[str, str]],
+) -> bool:
     key_l = str(key).lower()
     is_generic_key = key_l in {"state", "value", "status"}
     is_numeric = isinstance(val, (int, float)) or as_float(val) is not None
 
-    # Skip if it's a heater temperature (handled by climate)
-    if "heater" in name_l:
-        _LOGGER.debug(
-            "Skipping heater sensor for %s attribute %s (handled by climate)", name, key
-        )
-        return
-
-    # Skip redundant Aux display/status sensors (handled by switch)
-    if "aux" in name_l or "aux" in key_l:
-        _LOGGER.debug("Skipping redundant Aux sensor for %s attribute %s", name, key)
-        return
-
-    # Skip any attribute specifically named 'display'
-    if "display" in key_l:
-        _LOGGER.debug("Skipping 'display' sensor for %s attribute %s", name, key)
-        return
-
-    # Determine whether this attribute should be exposed as a sensor
-    is_sensor = False
+    dev_type = str(dev.get("type", "")).lower()
     if any(t in dev_type for t in ("temperature", "sensor", "value", "ppm", "ph", "orp", "setpoint")):
         if is_generic_key or is_numeric:
-            is_sensor = True
+            return True
 
     keys_to_check = TEMP_KEYS + SALT_KEYS + PH_KEYS + ORP_KEYS + PERCENT_KEYS
     if any(k.lower() in key_l for k in keys_to_check):
-        is_sensor = True
-    elif is_generic_key and any(k.lower() in name_l for k in keys_to_check):
-        is_sensor = True
+        return True
+    if is_generic_key and any(k.lower() in name_l for k in keys_to_check):
+        return True
 
     if is_numeric and not is_generic_key:
         if any(p in key_l for p in ("rpm", "watt", "gpm")):
             if (name, "rpm") in handled_attrs or (name, "watts") in handled_attrs:
-                return
-        is_sensor = True
+                return False
+        return True
 
-    if not is_sensor and not is_generic_key and len(key_l) > 3:
-        is_sensor = True
-
-    if is_sensor:
-        _LOGGER.debug("Adding sensor for %s attribute %s", name, key)
-        entities.append(GenericDeviceSensor(coordinator, name, str(key)))
-        handled_attrs.add((name, key))
+    if not is_generic_key and len(key_l) > 3:
+        return True
+    return False
 
 class PumpFilteredSensor(AqualinkDEntity, SensorEntity):
     def __init__(self, coordinator, device_name: str, attr: str, label: str) -> None:
