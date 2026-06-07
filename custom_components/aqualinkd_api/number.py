@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
@@ -55,7 +54,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 class AqualinkDAttributeNumber(AqualinkDEntity, NumberEntity):
     _attr_mode = NumberMode.SLIDER
 
-    def __init__(self, coordinator, device_name: str, attr: str, label: str, min_value: float, max_value: float, step: float, unit: str) -> None:
+    def __init__(
+        self,
+        coordinator,
+        device_name: str,
+        attr: str,
+        label: str,
+        min_value: float,
+        max_value: float,
+        step: float,
+        unit: str,
+    ) -> None:
         super().__init__(coordinator, device_name, attr)
         self._attr_name = f"{device_name} {label}"
         self._attr_native_min_value = min_value

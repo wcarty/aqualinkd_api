@@ -1,6 +1,5 @@
 import sys
 import os
-import json
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from util import flatten_devices, slugify
@@ -27,7 +26,6 @@ for source_data in [data2, data1]:  # Try loading the bad one first
     print(f"Flat source: {flat_source}")
     for name, dev_data in flat_source.items():
         dev_id = dev_data.get("id")
-        
         target = None
         if dev_id and dev_id in id_map:
             target = id_map[dev_id]
@@ -40,7 +38,7 @@ for source_data in [data2, data1]:  # Try loading the bad one first
                     target = existing_data
                     break
         
-        if target:
+            if target:
             best_name = str(target.get("name", ""))
             target.update(dev_data)
             new_name = str(target.get("name", ""))
@@ -68,7 +66,6 @@ for source_data in [data2, data1]:  # Try loading the bad one first
             name_map[name] = entry
             if dev_id:
                 id_map[dev_id] = entry
-
 print("--- FINAL ---")
 for k, v in name_map.items():
     print(f"Original Key: {k} -> Final Name: {v['name']}")

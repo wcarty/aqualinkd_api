@@ -6,6 +6,36 @@ from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
 
+# Keys that should not be treated as devices when present at top-level
+IGNORED_KEYS = {
+    "type",
+    "aqualinkd_version",
+    "date",
+    "time",
+    "temp_units",
+    "status",
+    "panel_message",
+    "panel_type",
+    "panel_type_full",
+    "version",
+    "battery",
+    "swg_fullstatus",
+    "swg_percent",
+    "swg_ppm",
+    "pool_temp",
+    "spa_temp",
+    "air_temp",
+    "pool_htr_set_pnt",
+    "spa_htr_set_pnt",
+    "frz_protect_set_pnt",
+    "leds",
+    "timers",
+    "timer_durations",
+    "sensors",
+    "light_program_names",
+    "alternate_modes",
+}
+
 def slugify(value: str) -> str:
     if value is None:
         return ""
@@ -112,13 +142,7 @@ def flatten_devices(data: dict[str, Any] | list[Any]) -> dict[str, dict[str, Any
                 preferred_name = device.get("name") or device.get("label") or key
                 device["name"] = preferred_name
                 devices[str(key)] = device
-            elif key not in {
-                "type", "aqualinkd_version", "date", "time", "temp_units", "status", 
-                "panel_message", "panel_type", "panel_type_full", "version", "battery", 
-                "swg_fullstatus", "swg_percent", "swg_ppm", "pool_temp", "spa_temp", 
-                "air_temp", "pool_htr_set_pnt", "spa_htr_set_pnt", "frz_protect_set_pnt",
-                "leds", "timers", "timer_durations", "sensors", "light_program_names", "alternate_modes"
-            }:
+            elif key not in IGNORED_KEYS:
                 # Avoid adding global metadata or known redundant status fields as new devices
                 devices[str(key)] = {"name": key, "state": value}
 

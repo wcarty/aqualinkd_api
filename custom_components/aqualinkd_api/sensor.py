@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .entity import AqualinkDEntity
-from .util import as_float, find_first_key, slugify
+from .util import as_float
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,7 +29,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     # Keep track of (device, attribute) pairs we've already created sensors for
     handled_attrs: set[tuple[str, str]] = set()
 
-    _LOGGER.debug("Setting up sensors for %d pumps and %d devices", len(coordinator.data.pump_filtered), len(coordinator.data.devices))
+    pump_count = len(coordinator.data.pump_filtered)
+    device_count = len(coordinator.data.devices)
+    _LOGGER.debug("Setting up sensors for %d pumps and %d devices", pump_count, device_count)
 
     for pump_name in coordinator.data.pump_filtered:
         _LOGGER.debug("Adding pump sensors for %s", pump_name)
@@ -102,9 +104,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     is_sensor = True
             
             # 2. Specialized keywords in key or name
-            if any(k.lower() in key_l for k in TEMP_KEYS + SALT_KEYS + PH_KEYS + ORP_KEYS + PERCENT_KEYS):
+            keys_to_check = TEMP_KEYS + SALT_KEYS + PH_KEYS + ORP_KEYS + PERCENT_KEYS
+            if any(k.lower() in key_l for k in keys_to_check):
                 is_sensor = True
-            elif is_generic_key and any(k.lower() in name_l for k in TEMP_KEYS + SALT_KEYS + PH_KEYS + ORP_KEYS + PERCENT_KEYS):
+            elif is_generic_key and any(k.lower() in name_l for k in keys_to_check):
                 is_sensor = True
                 
             # 3. Numeric attributes that aren't the main state

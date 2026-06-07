@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-import asyncio
 import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import AqualinkDApiClient, AqualinkDApiError
+from .api import AqualinkDApiClient
 from .util import as_bool, as_float, find_first_key, flatten_devices, slugify
 
 _LOGGER = logging.getLogger(__name__)
@@ -178,7 +177,13 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
             is_epump = "epump" in pump_type or "vsp" in pump_type
             
             if not (is_pump and is_epump):
-                _LOGGER.debug("Skipping telemetry for %s (is_pump: %s, is_epump: %s, type: %s)", name, is_pump, is_epump, pump_type)
+                _LOGGER.debug(
+                    "Skipping telemetry for %s: is_pump=%s is_epump=%s type=%s",
+                    name,
+                    is_pump,
+                    is_epump,
+                    pump_type,
+                )
                 continue
                 
             raw_rpm = as_float(find_first_key(dev, RPM_KEYS))
@@ -190,7 +195,21 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
                 pump_on = bool((raw_rpm or 0) > 0 or (raw_watts or 0) > 0)
 
             cache = self._pump_cache.setdefault(name, PumpCache())
-            filtered_rpm, filtered_watts, filtered_gpm, filter_state, stale = self._filter_pump(name, pump_on, raw_rpm, raw_watts, raw_gpm, now, cache)
+            (
+                filtered_rpm,
+                filtered_watts,
+                filtered_gpm,
+                filter_state,
+                stale,
+            ) = self._filter_pump(
+                name,
+                pump_on,
+                raw_rpm,
+                raw_watts,
+                raw_gpm,
+                now,
+                cache,
+            )
             result[name] = {
                 "raw_rpm": raw_rpm,
                 "raw_watts": raw_watts,
@@ -204,7 +223,16 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
             }
         return result
 
-    def _filter_pump(self, name: str, pump_on: bool, raw_rpm: float | None, raw_watts: float | None, raw_gpm: float | None, now: datetime, cache: PumpCache) -> tuple[float | None, float | None, float | None, str, bool]:
+    def _filter_pump(
+        self,
+        name: str,
+        pump_on: bool,
+        raw_rpm: float | None,
+        raw_watts: float | None,
+        raw_gpm: float | None,
+        now: datetime,
+        cache: PumpCache,
+    ) -> tuple[float | None, float | None, float | None, str, bool]:
         if not self.filter_pump_zeros:
             return raw_rpm, raw_watts, raw_gpm, "raw", False
 
