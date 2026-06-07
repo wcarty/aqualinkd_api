@@ -11,7 +11,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: ChatGPT Code Review
         uses: anc95/ChatGPT-CodeReview@v1
         env:
