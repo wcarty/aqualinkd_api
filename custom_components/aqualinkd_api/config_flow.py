@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Any
 import logging
-import voluptuous as vol
+from typing import Any
 
+import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.core import callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import AqualinkDApiClient, AqualinkDApiError
 from .const import (

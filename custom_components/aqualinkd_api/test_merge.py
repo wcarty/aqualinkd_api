@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from util import flatten_devices, slugify
@@ -42,7 +42,7 @@ for source_data in [data2, data1]:  # Try loading the bad one first
             best_name = str(target.get("name", ""))
             target.update(dev_data)
             new_name = str(target.get("name", ""))
-            
+
             if " " in best_name and " " not in new_name:
                 target["name"] = best_name
             elif " " in new_name and " " not in best_name:
@@ -57,7 +57,7 @@ for source_data in [data2, data1]:  # Try loading the bad one first
                 target["name"] = new_name
             else:
                 target["name"] = best_name
-            
+
             if dev_id:
                 id_map[dev_id] = target
         else:

@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
-from homeassistant.const import UnitOfTemperature, PERCENTAGE
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -181,14 +181,14 @@ class PumpFilteredSensor(AqualinkDEntity, SensorEntity):
 class GenericDeviceSensor(AqualinkDEntity, SensorEntity):
     def __init__(self, coordinator, device_name: str, attr: str) -> None:
         super().__init__(coordinator, device_name, attr)
-        
+
         # Clean up the name
         clean_attr = attr.replace("_", " ").replace(device_name, "").strip()
         if attr.lower() in {"state", "value", "status"} or not clean_attr:
             self._attr_name = device_name
         else:
             self._attr_name = f"{device_name} {clean_attr}"
-            
+
         key_l = attr.lower()
         name_l = device_name.lower()
         val = self.coordinator.data.devices.get(self.device_name, {}).get(self.attr)
@@ -223,9 +223,9 @@ class GenericDeviceSensor(AqualinkDEntity, SensorEntity):
     def native_value(self) -> Any:
         val = self.coordinator.data.devices.get(self.device_name, {}).get(self.attr)
         num = as_float(val)
-        
+
         # Handle AqualinkD -999.0 for inactive sensors (common for Spa when off)
         if num is not None and num <= -999.0:
             return 0.0
-            
+
         return num if num is not None else val

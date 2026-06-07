@@ -89,14 +89,14 @@ def flatten_devices(data: dict[str, Any] | list[Any]) -> dict[str, dict[str, Any
     The API shape varies by build/panel. This function is intentionally tolerant.
     """
     _LOGGER.debug("Flattening data type %s", type(data))
-    
+
     source = data
     if isinstance(data, dict):
         if "devices" in data:
             source = data["devices"]
         elif "status" in data and isinstance(data["status"], dict):
             source = data["status"]
-            
+
     devices: dict[str, dict[str, Any]] = {}
 
     # Pre-process nested containers if they exist

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
 import asyncio
 import logging
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -175,19 +175,19 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
             return {}
 
     def _process_pumps(self, devices: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result: dict[str, dict[str, Any]] = {}
         for name, dev in devices.items():
             lname = name.lower()
-            
+
             # Identify if this is a pump
             is_pump = any(h in lname for h in PUMP_HINTS)
-            
+
             # Check if it's an ePump / VSP (Variable Speed Pump)
             # These are the ones with telemetry (RPM, Watts, etc.)
             pump_type = str(dev.get("Pump_Type", dev.get("type_ext", ""))).lower()
             is_epump = "epump" in pump_type or "vsp" in pump_type
-            
+
             if not (is_pump and is_epump):
                 _LOGGER.debug(
                     "Skipping telemetry for %s: is_pump=%s is_epump=%s type=%s",
@@ -197,7 +197,7 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
                     pump_type,
                 )
                 continue
-                
+
             raw_rpm = as_float(find_first_key(dev, RPM_KEYS))
             raw_watts = as_float(find_first_key(dev, WATT_KEYS))
             raw_gpm = as_float(find_first_key(dev, GPM_KEYS))
