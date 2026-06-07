@@ -99,54 +99,14 @@ def flatten_devices(data: dict[str, Any] | list[Any]) -> dict[str, dict[str, Any
             
     devices: dict[str, dict[str, Any]] = {}
 
-    def _is_ignored(name_or_id: str) -> bool:
-        if not name_or_id:
-            return False
-        nl = str(name_or_id).lower()
-        return "aux_b" in nl or "aux_v" in nl or "aux_s" in nl
-
-    def _extract_containers(d: dict[str, Any]) -> None:
-        for container in ("leds", "timers", "sensors"):
-            if container in d and isinstance(d[container], dict):
-                _LOGGER.debug("Extracting devices from nested container: %s", container)
-                for k, v in d[container].items():
-                    if _is_ignored(k):
-                        continue
-                    devices[str(k)] = {"id": k, "name": k, "state": v}
-
-    def _process_list_source(src: list[Any]) -> None:
-        _LOGGER.debug("Processing list source with %d items", len(src))
-        for item in src:
-            if isinstance(item, dict):
-                name = item.get("name") or item.get("label") or item.get("id") or item.get("topic")
-                if name and not _is_ignored(name) and not _is_ignored(item.get("id")):
-                    devices[str(name)] = dict(item)
-            elif item is not None and not _is_ignored(str(item)):
-                devices[str(item)] = {"name": str(item), "state": item}
-
-    def _process_dict_source(src: dict[str, Any]) -> None:
-        _LOGGER.debug("Processing dict source with %d keys", len(src))
-        for key, value in src.items():
-            if _is_ignored(key):
-                continue
-            if isinstance(value, dict):
-                if _is_ignored(value.get("id")) or _is_ignored(value.get("name")):
-                    continue
-                device = dict(value)
-                preferred_name = device.get("name") or device.get("label") or key
-                device["name"] = preferred_name
-                devices[str(key)] = device
-            elif key not in IGNORED_KEYS:
-                devices[str(key)] = {"name": key, "state": value}
-
     # Pre-process nested containers if they exist
     if isinstance(data, dict):
-        _extract_containers(data)
+        _extract_containers_from(data, devices)
 
     if isinstance(source, list):
-        _process_list_source(source)
+        _process_list_source(source, devices)
     elif isinstance(source, dict):
-        _process_dict_source(source)
+        _process_dict_source(source, devices)
 
     _LOGGER.debug("Flattened into %d devices: %s", len(devices), list(devices.keys()))
     return devices

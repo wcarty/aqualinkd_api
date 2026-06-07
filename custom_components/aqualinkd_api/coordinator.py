@@ -20,6 +20,58 @@ WATT_KEYS = ("watts", "Watts", "Pump_Watts", "watt", "Watt", "power", "Power")
 GPM_KEYS = ("gpm", "GPM", "Pump_GPM", "flow", "Flow")
 STATE_KEYS = ("state", "status", "enabled", "on", "value")
 
+
+def _merge_flat_source(flat_source: dict[str, dict[str, Any]], id_map: dict[str, dict[str, Any]], name_map: dict[str, dict[str, Any]]) -> None:
+    """Merge a single flattened source into id/name maps."""
+    for name, dev_data in flat_source.items():
+        dev_id = dev_data.get("id")
+
+        # 1. Try to match by ID
+        target = None
+        if dev_id and dev_id in id_map:
+            target = id_map[dev_id]
+        # 2. Try to match if the explicit ID was previously used as a Name
+        elif dev_id and dev_id in name_map:
+            target = name_map[dev_id]
+        # 3. Try to match if the incoming Name is actually a known ID
+        elif name in id_map:
+            target = id_map[name]
+        # 4. Try to match by Name
+        elif name in name_map:
+            target = name_map[name]
+        # 5. Try to match by slugified name
+        else:
+            name_slug = slugify(name)
+            for existing_name, existing_data in name_map.items():
+                if slugify(existing_name) == name_slug:
+                    target = existing_data
+                    break
+
+        if target:
+            existing_state = str(target.get("state", "")).lower()
+            new_state = str(dev_data.get("state", "")).lower()
+
+            target.update(dev_data)
+
+            if (
+                existing_state in ("on", "1", "enabled", "true")
+                and new_state in ("off", "0", "disabled", "false")
+            ):
+                target["state"] = existing_state
+
+            current_name = target.get("name", name)
+            if " " in name and " " not in current_name:
+                target["name"] = name
+
+            if dev_id:
+                id_map[dev_id] = target
+        else:
+            entry = dict(dev_data)
+            entry.setdefault("name", name)
+            name_map[name] = entry
+            if dev_id:
+                id_map[dev_id] = entry
+
 @dataclass
 class PumpCache:
     last_valid_rpm: float | None = None
@@ -101,57 +153,9 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
         """Flatten and merge multiple raw sources into a single devices mapping."""
         id_map: dict[str, dict[str, Any]] = {}
         name_map: dict[str, dict[str, Any]] = {}
-
         for source_data in [devices_raw, status_raw, status_json_raw, config_json_raw]:
             flat_source = flatten_devices(source_data)
-            for name, dev_data in flat_source.items():
-                dev_id = dev_data.get("id")
-
-                # 1. Try to match by ID
-                target = None
-                if dev_id and dev_id in id_map:
-                    target = id_map[dev_id]
-                # 2. Try to match if the explicit ID was previously used as a Name
-                elif dev_id and dev_id in name_map:
-                    target = name_map[dev_id]
-                # 3. Try to match if the incoming Name is actually a known ID
-                elif name in id_map:
-                    target = id_map[name]
-                # 4. Try to match by Name
-                elif name in name_map:
-                    target = name_map[name]
-                # 5. Try to match by slugified name
-                else:
-                    name_slug = slugify(name)
-                    for existing_name, existing_data in name_map.items():
-                        if slugify(existing_name) == name_slug:
-                            target = existing_data
-                            break
-
-                if target:
-                    existing_state = str(target.get("state", "")).lower()
-                    new_state = str(dev_data.get("state", "")).lower()
-
-                    target.update(dev_data)
-
-                    if (
-                        existing_state in ("on", "1", "enabled", "true")
-                        and new_state in ("off", "0", "disabled", "false")
-                    ):
-                        target["state"] = existing_state
-
-                    current_name = target.get("name", name)
-                    if " " in name and " " not in current_name:
-                        target["name"] = name
-
-                    if dev_id:
-                        id_map[dev_id] = target
-                else:
-                    entry = dict(dev_data)
-                    entry.setdefault("name", name)
-                    name_map[name] = entry
-                    if dev_id:
-                        id_map[dev_id] = entry
+            _merge_flat_source(flat_source, id_map, name_map)
 
         unique_entries = []
         seen_ids = set()
