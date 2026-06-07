@@ -3,10 +3,24 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+try:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.const import Platform
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+except Exception:  # pragma: no cover - fallback for test/CI environments
+    class ConfigEntry:  # type: ignore[no-redef]
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class Platform(str):
+        pass
+
+    class HomeAssistant:  # minimal placeholder for typing in tests
+        pass
+
+    async def async_get_clientsession(hass: HomeAssistant, verify_ssl: bool = True):
+        return None
 
 from .api import AqualinkDApiClient
 from .const import (
