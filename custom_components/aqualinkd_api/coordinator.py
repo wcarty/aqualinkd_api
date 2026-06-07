@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
 import asyncio
 import logging
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import AqualinkDApiClient, AqualinkDApiError
+from .api import AqualinkDApiClient
 from .util import as_bool, as_float, find_first_key, flatten_devices, slugify
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,6 +19,61 @@ RPM_KEYS = ("rpm", "RPM", "Pump_RPM", "speed", "Speed")
 WATT_KEYS = ("watts", "Watts", "Pump_Watts", "watt", "Watt", "power", "Power")
 GPM_KEYS = ("gpm", "GPM", "Pump_GPM", "flow", "Flow")
 STATE_KEYS = ("state", "status", "enabled", "on", "value")
+
+
+def _find_merge_target(
+    name: str, dev_id: str | None, id_map: dict[str, dict[str, Any]], name_map: dict[str, dict[str, Any]]
+) -> dict[str, Any] | None:
+    if dev_id and dev_id in id_map:
+        return id_map[dev_id]
+    if dev_id and dev_id in name_map:
+        return name_map[dev_id]
+    if name in id_map:
+        return id_map[name]
+    if name in name_map:
+        return name_map[name]
+
+    name_slug = slugify(name)
+    for existing_name, existing_data in name_map.items():
+        if slugify(existing_name) == name_slug:
+            return existing_data
+    return None
+
+
+def _merge_flat_source(
+    flat_source: dict[str, dict[str, Any]],
+    id_map: dict[str, dict[str, Any]],
+    name_map: dict[str, dict[str, Any]],
+) -> None:
+    """Merge a single flattened source into id/name maps."""
+    for name, dev_data in flat_source.items():
+        dev_id = dev_data.get("id")
+        target = _find_merge_target(name, dev_id, id_map, name_map)
+
+        if target:
+            existing_state = str(target.get("state", "")).lower()
+            new_state = str(dev_data.get("state", "")).lower()
+
+            target.update(dev_data)
+
+            if (
+                existing_state in ("on", "1", "enabled", "true")
+                and new_state in ("off", "0", "disabled", "false")
+            ):
+                target["state"] = existing_state
+
+            current_name = target.get("name", name)
+            if " " in name and " " not in current_name:
+                target["name"] = name
+
+            if dev_id:
+                id_map[dev_id] = target
+        else:
+            entry = dict(dev_data)
+            entry.setdefault("name", name)
+            name_map[name] = entry
+            if dev_id:
+                id_map[dev_id] = entry
 
 @dataclass
 class PumpCache:
@@ -55,88 +110,12 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
 
     async def _async_update_data(self) -> ProcessedData:
         try:
-            # Fetch from all potential endpoints in parallel to maximize discovery.
-            results = await asyncio.gather(
-                self._safe_fetch(self.client.get_devices, "devices"),
-                self._safe_fetch(self.client.get_status, "status"),
-                self._safe_fetch(self.client.get_status_json, "status_json"),
-                self._safe_fetch(self.client.get_config_json, "config_json"),
-                return_exceptions=False,
-            )
-            
-            devices_raw = results[0]
-            status_raw = results[1]
-            status_json_raw = results[2]
-            config_json_raw = results[3]
+            devices_raw, status_raw, status_json_raw, config_json_raw = await self._gather_sources()
 
-            # Flatten and merge all sources with high precision.
-            # We track devices by both ID and Name to ensure perfect alignment.
-            id_map: dict[str, dict[str, Any]] = {}
-            name_map: dict[str, dict[str, Any]] = {}
-            
-            for source_data in [devices_raw, status_raw, status_json_raw, config_json_raw]:
-                flat_source = flatten_devices(source_data)
-                for name, dev_data in flat_source.items():
-                    dev_id = dev_data.get("id")
-                    
-                    # 1. Try to match by ID
-                    target = None
-                    if dev_id and dev_id in id_map:
-                        target = id_map[dev_id]
-                    # 2. Try to match if the explicit ID was previously used as a Name
-                    elif dev_id and dev_id in name_map:
-                        target = name_map[dev_id]
-                    # 3. Try to match if the incoming Name is actually a known ID
-                    elif name in id_map:
-                        target = id_map[name]
-                    # 4. Try to match by Name
-                    elif name in name_map:
-                        target = name_map[name]
-                    # 5. Try to match by slugified name
-                    else:
-                        name_slug = slugify(name)
-                        for existing_name, existing_data in name_map.items():
-                            if slugify(existing_name) == name_slug:
-                                target = existing_data
-                                break
-                    
-                    if target:
-                        # PROTECT ACTIVE STATES: Do not let stale "off" data overwrite a known "on" state
-                        existing_state = str(target.get("state", "")).lower()
-                        new_state = str(dev_data.get("state", "")).lower()
-                        
-                        target.update(dev_data)
-                        
-                        if existing_state in ("on", "1", "enabled", "true") and new_state in ("off", "0", "disabled", "false"):
-                            target["state"] = existing_state
-                            
-                        # Keep the "prettiest" name
-                        current_name = target.get("name", name)
-                        if " " in name and " " not in current_name:
-                            target["name"] = name
-                            
-                        # Track the new ID if it was previously unknown
-                        if dev_id:
-                            id_map[dev_id] = target
-                    else:
-                        # New entry
-                        entry = dict(dev_data)
-                        entry.setdefault("name", name)
-                        name_map[name] = entry
-                        if dev_id:
-                            id_map[dev_id] = entry
-            
-            # The final devices list is the set of unique entries we've built
-            unique_entries = []
-            seen_ids = set()
-            for entry in name_map.values():
-                entry_ptr = id(entry)
-                if entry_ptr not in seen_ids:
-                    unique_entries.append(entry)
-                    seen_ids.add(entry_ptr)
-            
-            devices = {data["name"]: data for data in unique_entries}
-            
+            devices = self._merge_sources(
+                devices_raw, status_raw, status_json_raw, config_json_raw
+            )
+
             _LOGGER.debug("Merged into %d unique devices: %s", len(devices), list(devices.keys()))
 
             pump_filtered = self._process_pumps(devices)
@@ -147,14 +126,49 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
                     "devices": devices_raw,
                     "status": status_raw,
                     "status_json": status_json_raw,
-                    "config_json": config_json_raw
+                    "config_json": config_json_raw,
                 },
                 devices=devices,
-                pump_filtered=pump_filtered
+                pump_filtered=pump_filtered,
             )
         except Exception as exc:
             _LOGGER.error("Unexpected error during data update: %s", exc)
             raise UpdateFailed(f"Unexpected error: {exc}") from exc
+
+    async def _gather_sources(self) -> tuple[Any, Any, Any, Any]:
+        """Fetch all potential endpoints in parallel and return raw results."""
+        results = await asyncio.gather(
+            self._safe_fetch(self.client.get_devices, "devices"),
+            self._safe_fetch(self.client.get_status, "status"),
+            self._safe_fetch(self.client.get_status_json, "status_json"),
+            self._safe_fetch(self.client.get_config_json, "config_json"),
+            return_exceptions=False,
+        )
+        return results[0], results[1], results[2], results[3]
+
+    def _merge_sources(
+        self,
+        devices_raw: Any,
+        status_raw: Any,
+        status_json_raw: Any,
+        config_json_raw: Any,
+    ) -> dict[str, dict[str, Any]]:
+        """Flatten and merge multiple raw sources into a single devices mapping."""
+        id_map: dict[str, dict[str, Any]] = {}
+        name_map: dict[str, dict[str, Any]] = {}
+        for source_data in [devices_raw, status_raw, status_json_raw, config_json_raw]:
+            flat_source = flatten_devices(source_data)
+            _merge_flat_source(flat_source, id_map, name_map)
+
+        unique_entries = []
+        seen_ids = set()
+        for entry in name_map.values():
+            entry_ptr = id(entry)
+            if entry_ptr not in seen_ids:
+                unique_entries.append(entry)
+                seen_ids.add(entry_ptr)
+
+        return {data["name"]: data for data in unique_entries}
 
     async def _safe_fetch(self, func, label: str) -> Any:
         try:
@@ -164,23 +178,29 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
             return {}
 
     def _process_pumps(self, devices: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result: dict[str, dict[str, Any]] = {}
         for name, dev in devices.items():
             lname = name.lower()
-            
+
             # Identify if this is a pump
             is_pump = any(h in lname for h in PUMP_HINTS)
-            
+
             # Check if it's an ePump / VSP (Variable Speed Pump)
             # These are the ones with telemetry (RPM, Watts, etc.)
             pump_type = str(dev.get("Pump_Type", dev.get("type_ext", ""))).lower()
             is_epump = "epump" in pump_type or "vsp" in pump_type
-            
+
             if not (is_pump and is_epump):
-                _LOGGER.debug("Skipping telemetry for %s (is_pump: %s, is_epump: %s, type: %s)", name, is_pump, is_epump, pump_type)
+                _LOGGER.debug(
+                    "Skipping telemetry for %s: is_pump=%s is_epump=%s type=%s",
+                    name,
+                    is_pump,
+                    is_epump,
+                    pump_type,
+                )
                 continue
-                
+
             raw_rpm = as_float(find_first_key(dev, RPM_KEYS))
             raw_watts = as_float(find_first_key(dev, WATT_KEYS))
             raw_gpm = as_float(find_first_key(dev, GPM_KEYS))
@@ -190,7 +210,21 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
                 pump_on = bool((raw_rpm or 0) > 0 or (raw_watts or 0) > 0)
 
             cache = self._pump_cache.setdefault(name, PumpCache())
-            filtered_rpm, filtered_watts, filtered_gpm, filter_state, stale = self._filter_pump(name, pump_on, raw_rpm, raw_watts, raw_gpm, now, cache)
+            (
+                filtered_rpm,
+                filtered_watts,
+                filtered_gpm,
+                filter_state,
+                stale,
+            ) = self._filter_pump(
+                name,
+                pump_on,
+                raw_rpm,
+                raw_watts,
+                raw_gpm,
+                now,
+                cache,
+            )
             result[name] = {
                 "raw_rpm": raw_rpm,
                 "raw_watts": raw_watts,
@@ -204,7 +238,16 @@ class AqualinkDDataUpdateCoordinator(DataUpdateCoordinator[ProcessedData]):
             }
         return result
 
-    def _filter_pump(self, name: str, pump_on: bool, raw_rpm: float | None, raw_watts: float | None, raw_gpm: float | None, now: datetime, cache: PumpCache) -> tuple[float | None, float | None, float | None, str, bool]:
+    def _filter_pump(
+        self,
+        name: str,
+        pump_on: bool,
+        raw_rpm: float | None,
+        raw_watts: float | None,
+        raw_gpm: float | None,
+        now: datetime,
+        cache: PumpCache,
+    ) -> tuple[float | None, float | None, float | None, str, bool]:
         if not self.filter_pump_zeros:
             return raw_rpm, raw_watts, raw_gpm, "raw", False
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import asyncio
-from datetime import timedelta
 import logging
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import AqualinkDApiClient
@@ -43,16 +42,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         scheme=entry.data[CONF_SCHEME],
         verify_ssl=entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
     )
+    poll = entry.options.get(
+        CONF_POLL_INTERVAL, entry.data.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
+    )
     coordinator = AqualinkDDataUpdateCoordinator(
         hass=hass,
         client=client,
-        update_interval=timedelta(seconds=entry.options.get(CONF_POLL_INTERVAL, entry.data.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL))),
-        filter_pump_zeros=entry.options.get(CONF_FILTER_PUMP_ZEROS, entry.data.get(CONF_FILTER_PUMP_ZEROS, DEFAULT_FILTER_PUMP_ZEROS)),
-        zero_grace_period=entry.options.get(CONF_ZERO_GRACE_PERIOD, entry.data.get(CONF_ZERO_GRACE_PERIOD, DEFAULT_ZERO_GRACE_PERIOD)),
-        stale_timeout=entry.options.get(CONF_STALE_TIMEOUT, entry.data.get(CONF_STALE_TIMEOUT, DEFAULT_STALE_TIMEOUT)),
-        create_raw_sensors=entry.options.get(CONF_CREATE_RAW_SENSORS, entry.data.get(CONF_CREATE_RAW_SENSORS, DEFAULT_CREATE_RAW_SENSORS)),
+        update_interval=timedelta(seconds=poll),
+        filter_pump_zeros=
+            entry.options.get(
+                CONF_FILTER_PUMP_ZEROS,
+                entry.data.get(CONF_FILTER_PUMP_ZEROS, DEFAULT_FILTER_PUMP_ZEROS),
+            ),
+        zero_grace_period=
+            entry.options.get(
+                CONF_ZERO_GRACE_PERIOD,
+                entry.data.get(CONF_ZERO_GRACE_PERIOD, DEFAULT_ZERO_GRACE_PERIOD),
+            ),
+        stale_timeout=
+            entry.options.get(
+                CONF_STALE_TIMEOUT,
+                entry.data.get(CONF_STALE_TIMEOUT, DEFAULT_STALE_TIMEOUT),
+            ),
+        create_raw_sensors=
+            entry.options.get(
+                CONF_CREATE_RAW_SENSORS,
+                entry.data.get(CONF_CREATE_RAW_SENSORS, DEFAULT_CREATE_RAW_SENSORS),
+            ),
     )
-    
     _LOGGER.debug("Performing first refresh for AqualinkD coordinator")
     try:
         await coordinator.async_config_entry_first_refresh()
@@ -60,12 +77,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.warning("First refresh failed for AqualinkD, will retry in background: %s", exc)
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-    
+
     _LOGGER.debug("Forwarding setups for platforms: %s", PLATFORMS)
-    await hass.config_entries.async_forward_entry_setups(entry, [Platform(p) for p in PLATFORMS])
-    
+    await hass.config_entries.async_forward_entry_setups(
+        entry, [Platform(p) for p in PLATFORMS]
+    )
+
     entry.async_on_unload(entry.add_update_listener(async_update_options))
-    
+
     _LOGGER.info("Successfully set up AqualinkD API integration for %s", entry.data[CONF_HOST])
     return True
 

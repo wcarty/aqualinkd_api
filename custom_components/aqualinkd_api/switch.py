@@ -24,27 +24,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     for name, dev in coordinator.data.devices.items():
         lname = name.lower()
         dev_type = str(dev.get("type", "")).lower()
-        
+
         # Explicitly exclude types that shouldn't be switches or are handled by climate
         if any(t in dev_type for t in ("temp", "sensor", "value", "ppm", "ph", "orp", "setpoint_thermo")):
             _LOGGER.debug("Skipping switch for %s due to type %s", name, dev_type)
             continue
-            
+
         if "heater" in lname:
             _LOGGER.debug("Skipping switch for %s (handled by climate)", name)
             continue
-            
+
         state_val = find_first_key(dev, STATE_KEYS)
         state = as_bool(state_val)
         _LOGGER.debug("Checking device %s for switch compatibility. Type: %s, State: %s", name, dev_type, state)
-        
+
         # If it's explicitly a switch type, or a heater, or matches our hints, or has a boolean state
         is_switchable = (
-            dev_type in {"switch", "setpoint_thermo", "setpoint_swg"} or 
-            any(h in lname for h in CONTROL_HINTS) or 
+            dev_type in {"switch", "setpoint_thermo", "setpoint_swg"} or
+            any(h in lname for h in CONTROL_HINTS) or
             state is not None
         )
-        
+
         if is_switchable:
             _LOGGER.debug("Adding switch entity for %s", name)
             entities.append(AqualinkDSwitch(coordinator, name))

@@ -6,17 +6,17 @@ from typing import Any
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
-    HVACMode,
     HVACAction,
+    HVACMode,
 )
-from homeassistant.const import UnitOfTemperature, ATTR_TEMPERATURE
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .entity import AqualinkDEntity
-from .util import as_float, find_first_key
+from .util import as_float
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class AqualinkDClimate(AqualinkDEntity, ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         dev_data = self.coordinator.data.devices.get(self.device_name, {})
         device_id = dev_data.get("id", self.device_name)
-        
+
         # API v2.0: PUT /api/Pool_Heater/set with value=1
         state = 1 if hvac_mode == HVACMode.HEAT else 0
         await self.coordinator.client.set_device(device_id, state)
@@ -91,10 +91,10 @@ class AqualinkDClimate(AqualinkDEntity, ClimateEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         if (temp := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
-            
+
         dev_data = self.coordinator.data.devices.get(self.device_name, {})
         device_id = dev_data.get("id", self.device_name)
-        
+
         # API v2.0: PUT /api/Pool_Heater/setpoint/set with value=85
         await self.coordinator.client.set_attribute(device_id, "setpoint", temp)
         await self.coordinator.async_request_refresh()

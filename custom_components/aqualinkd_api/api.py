@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 from urllib.parse import quote
@@ -13,7 +12,15 @@ class AqualinkDApiError(Exception):
     """Base AqualinkD API error."""
 
 class AqualinkDApiClient:
-    def __init__(self, session: aiohttp.ClientSession, host: str, port: int, scheme: str = "http", timeout: int = 10, verify_ssl: bool = False) -> None:
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        host: str,
+        port: int,
+        scheme: str = "http",
+        timeout: int = 10,
+        verify_ssl: bool = False,
+    ) -> None:
         self._session = session
         self.host = host
         self.port = port
@@ -29,7 +36,13 @@ class AqualinkDApiClient:
         url = f"{self.base_url}{path}"
         _LOGGER.debug("Requesting %s %s", method, url)
         try:
-            async with self._session.request(method, url, timeout=self.timeout, ssl=self.verify_ssl if self.scheme == "https" else None, **kwargs) as resp:
+            async with self._session.request(
+                method,
+                url,
+                timeout=self.timeout,
+                ssl=self.verify_ssl if self.scheme == "https" else None,
+                **kwargs,
+            ) as resp:
                 text = await resp.text()
                 _LOGGER.debug("Response from %s: HTTP %s: %s", url, resp.status, text[:500])
                 if resp.status >= 400:
@@ -40,7 +53,7 @@ class AqualinkDApiClient:
                     except Exception as exc:
                         raise AqualinkDApiError(f"Invalid JSON from {url}: {exc}") from exc
                 return text
-        except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+        except (aiohttp.ClientError, TimeoutError) as exc:
             raise AqualinkDApiError(f"Error calling {url}: {exc}") from exc
 
     async def _request_json(self, path: str) -> dict[str, Any] | list[Any]:
