@@ -85,7 +85,8 @@ def flatten_devices(data: dict[str, Any] | list[Any]) -> dict[str, dict[str, Any
                     if _is_ignored(k):
                         continue
                     # Create a simple device entry from the container item
-                    devices[str(k)] = {"name": k, "state": v}
+                    # Use the container key as an `id` as well to aid merging
+                    devices[str(k)] = {"id": k, "name": k, "state": v}
 
     if isinstance(source, list):
         _LOGGER.debug("Processing list source with %d items", len(source))
