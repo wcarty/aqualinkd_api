@@ -15,6 +15,19 @@ pool status and equipment in Home Assistant.
 - Optional salt-generator and freeze-protection setpoint controls
 - Home Assistant diagnostics and one controller device grouping all entities
 
+## Entities
+
+The exact entities depend on the devices returned by AqualinkD.
+
+| Platform | Examples | Control required |
+|---|---|---|
+| Sensor | Air/pool/spa temperature, pH, ORP, salt PPM, SWG output, pump RPM/watts/GPM | No |
+| Sensor | Panel, chemistry, and salt-generator data age | No |
+| Binary sensor | Controller ready and equipment on/off status | No |
+| Switch | Pumps, spa mode, lights, auxiliaries, blower, boost | Yes |
+| Climate | Pool heater and spa heater | Yes |
+| Number | Salt-generator output and freeze-protection setpoint | Yes |
+
 Equipment controls are **disabled by default**. Enabling them creates entities
 that can operate physical pumps, lights, heaters, auxiliaries, and other
 equipment exposed by AqualinkD.
@@ -53,6 +66,37 @@ pool equipment. Review and disable any entities that should not be manually
 controlled, especially chemical-dosing auxiliaries. The integration does not
 optimistically change entity state: after a command, it polls AqualinkD and
 shows the state reported by the controller.
+
+Chemical-dosing switch entities are created disabled in the entity registry.
+They should remain disabled unless the dosing hardware and independent safety
+interlocks have been reviewed.
+
+## Troubleshooting
+
+### Cannot connect during setup
+
+Open `http://<aqualinkd-host>/api/status` and
+`http://<aqualinkd-host>/api/devices` in a browser. Both endpoints must return
+JSON. The standard AqualinkD port is `80`; change it only if the daemon was
+configured to listen elsewhere.
+
+### Entities become unavailable
+
+Home Assistant marks coordinator entities unavailable when either required API
+endpoint fails. Check the AqualinkD service, controller network connection, and
+Home Assistant logs rather than relying on stale values.
+
+### Controls are missing
+
+Open **Settings > Devices & services > AqualinkD API > Configure**, enable
+equipment controls, and submit. The integration reloads and adds switches,
+climates, and number entities.
+
+### HACS does not show the integration
+
+Verify that the repository was added as an **Integration**, not a dashboard or
+theme. If an older repository view is cached, reload HACS and check for the
+latest GitHub release.
 
 ## Development
 

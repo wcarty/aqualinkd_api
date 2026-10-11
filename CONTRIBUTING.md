@@ -1,22 +1,33 @@
-# Contributing to AqualinkD API
+# Contributing
 
-First of all, thank you for considering contributing to this project!
+Bug reports and pull requests are welcome.
 
-## How to Contribute
+## Before opening an issue
 
-1.  **Report Bugs**: Use the GitHub Issues to report bugs.
-2.  **Suggest Features**: Use GitHub Issues to suggest new features.
-3.  **Submit Pull Requests**:
-    *   Fork the repository.
-    *   Create a new branch for your feature or bug fix.
-    *   Follow the guidelines in [DEVELOPMENT.md](DEVELOPMENT.md).
-    *   Ensure your code passes linting (`ruff check .`).
-    *   Submit a PR and wait for the AI and maintainer review.
+Include:
 
-## Code of Conduct
+- Home Assistant version
+- AqualinkD version and panel type
+- Integration version
+- Whether controls are enabled
+- Relevant integration diagnostics with private network details redacted
+- The exact entity or command that failed
 
-Please be respectful and professional in all interactions.
+Do not include passwords, access tokens, MQTT credentials, or private
+certificates.
 
-## Security
+## Pull requests
 
-If you find a security vulnerability, please do NOT open a public issue. Instead, report it privately to the maintainers.
+1. Create a focused branch.
+2. Follow [DEVELOPMENT.md](DEVELOPMENT.md).
+3. Add or update tests for behavior changes.
+4. Update user documentation for visible changes.
+5. Confirm the **Validate** and **HACS** checks pass.
+
+Changes that can operate physical equipment must remain opt-in and must refresh
+the reported state from AqualinkD after the command.
+
+## Security reports
+
+Do not publish exploitable vulnerabilities or credentials in a public issue.
+Use GitHub's private vulnerability reporting for this repository.

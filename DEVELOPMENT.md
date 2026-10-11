@@ -1,64 +1,74 @@
-# Development Guidelines
+# Development
 
-This document outlines the development workflow, security practices, and automation used in the AqualinkD API project.
+## Requirements
 
-## 🚀 AI-Powered Workflow
+- Python 3.12 or newer
+- Docker for validation against the current Home Assistant container
+- An AqualinkD controller for optional live read-only API checks
 
-We use AI to ensure high code quality, security, and maintainability. Our CI/CD pipeline includes:
+## Local setup
 
-### 1. AI Code Review
-Every Pull Request is automatically reviewed by an AI agent (using GPT-4o).
-- **What it does**: Analyzes the diff, identifies logic flaws, suggests performance improvements, and ensures adherence to coding standards.
-- **How to use**: Simply open a PR. The AI will comment with its findings. You can interact with the AI by replying to its comments if the specific action supports it.
-
-### 2. Automated Security Scanning
-We use **GitHub CodeQL** and AI-driven security analysis to catch vulnerabilities early.
-- **CodeQL**: Performs static analysis to find common security patterns (SQL injection, XSS, etc.).
-- **AI Security Review**: The PR reviewer is specifically prompted to look for security risks in the context of Home Assistant integrations (e.g., credential handling, local network security).
-
-### 3. Dependency Management
-**Dependabot** is enabled to keep our dependencies updated and secure.
-- It scans for outdated or vulnerable packages weekly.
-- Automatically opens PRs to update requirements.
-
-## 🛠️ Local Development
-
-### Setup
-1. Clone the repository.
-2. Install development dependencies:
-   ```bash
-   pip install ruff pytest
-   ```
-
-### Linting & Formatting
-We use **Ruff** for extremely fast linting and formatting.
-- Run linting: `ruff check .`
-- Auto-fix issues: `ruff check --fix .`
-
-### Testing
-You can run tests locally using a virtual environment and `dev-requirements.txt`.
-
-```powershell
+```bash
 python -m venv .venv
-.venv\Scripts\python.exe -m pip install --upgrade pip
-.venv\Scripts\python.exe -m pip install -r dev-requirements.txt
-.venv\Scripts\python.exe -m ruff check . --fix
-.venv\Scripts\python.exe -m pytest -q
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r dev-requirements.txt
 ```
 
-Tests are lightweight and avoid depending on Home Assistant; they exercise core logic in `custom_components/aqualinkd_api`.
+## Validation
 
-## 🔒 Security Best Practices
+Run all repository checks before opening a pull request:
 
-1. **No Hardcoded Secrets**: Never hardcode IP addresses, passwords, or tokens in the codebase. Use configuration flows.
-2. **Input Validation**: Always validate data received from the AqualinkD API before processing.
-3. **Local Only**: Ensure the integration remains strictly local-polling and does not leak data to external services unless explicitly configured.
-4. **SSL Verification**: While disabled by default for ease of use with local self-signed certs, we encourage users to enable `verify_ssl` when using HTTPS.
+```bash
+python -m ruff check .
+python -m ruff format --check .
+python -m pytest -q
+python -m compileall -q custom_components/aqualinkd_api
+```
 
-## 🤝 Contribution Workflow
+The test suite is intentionally lightweight. It validates value conversion,
+device normalization, and command URL construction without requiring a running
+Home Assistant instance or sending commands to pool equipment.
 
-1. **Fork & Branch**: Create a feature branch for your changes.
-2. **Lint**: Run `ruff check .` before committing.
-3. **Test**: Ensure `test_merge.py` passes.
-4. **PR**: Open a PR. Wait for the AI Reviewer and CI checks to pass.
-5. **Address Feedback**: Review both human and AI comments.
+## Home Assistant import validation
+
+The integration can be imported with the official Home Assistant image:
+
+```bash
+docker build -t aqualinkd-api-validation -f - . <<'EOF'
+FROM ghcr.io/home-assistant/home-assistant:stable
+COPY custom_components /config/custom_components
+EOF
+
+docker run --rm --entrypoint python aqualinkd-api-validation -c \
+  "import sys; sys.path.insert(0, '/config/custom_components'); import aqualinkd_api"
+```
+
+## Architecture
+
+- `api.py` performs HTTP requests and validates endpoint response shapes.
+- `coordinator.py` polls `/api/devices` and `/api/status` once per interval.
+- `sensor.py` exposes numeric telemetry and source-age diagnostics.
+- `binary_sensor.py` exposes read-only controller and equipment state.
+- `switch.py`, `climate.py`, and `number.py` provide opt-in controls.
+- `config_flow.py` owns UI setup and options.
+
+The coordinator treats `/api/devices` as the authoritative equipment inventory.
+`config.json` is intentionally not read because it contains web presentation
+settings rather than authoritative controller state.
+
+## Safety requirements
+
+- Never send equipment commands from tests.
+- Keep controls disabled by default.
+- Chemical-dosing controls must be disabled by default in the entity registry.
+- Do not optimistically update states after commands; refresh from AqualinkD.
+- API failures must produce unavailable entities, not cached success-shaped data.
+
+## Release process
+
+1. Update the integration version in `manifest.json`.
+2. Update `CHANGELOG.md`.
+3. Run all local validation.
+4. Push the commit and confirm both **Validate** and **HACS** workflows pass.
+5. Create a GitHub release tag matching the manifest version, prefixed with `v`.
