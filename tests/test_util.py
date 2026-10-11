@@ -2,6 +2,7 @@ from custom_components.aqualinkd_api.util import (
     as_bool,
     as_float,
     normalize_devices,
+    pump_status_records,
 )
 
 
@@ -38,3 +39,21 @@ def test_normalize_devices_uses_stable_ids():
 
     assert set(devices) == {"Aux_1", "CHEM/pH"}
     assert devices["CHEM/pH"]["value"] == "7.5"
+
+
+def test_pump_status_records_uses_stable_ids():
+    status = {
+        "status": "Ready",
+        "Pump_1": {
+            "id": "Filter_Pump",
+            "name": "Filter Pump",
+            "age_seconds": 4,
+        },
+        "Pump_2": {"name": "Missing ID", "age_seconds": 8},
+        "Pump_Bad": "invalid",
+    }
+
+    pumps = pump_status_records(status)
+
+    assert set(pumps) == {"Filter_Pump"}
+    assert pumps["Filter_Pump"]["age_seconds"] == 4

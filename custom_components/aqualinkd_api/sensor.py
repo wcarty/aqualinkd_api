@@ -19,6 +19,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AqualinkDConfigEntry
 from .entity import AqualinkDEntity
+from .util import pump_status_records
 
 
 def _number(value: Any) -> float | None:
@@ -80,6 +81,9 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [
         AqualinkDStatusSensor(coordinator, description) for description in STATUS_DESCRIPTIONS
     ]
+    entities.extend(
+        AqualinkDPumpAgeSensor(coordinator, device_id) for device_id in pump_status_records(coordinator.data.status)
+    )
 
     for device_id, device in coordinator.data.devices.items():
         device_type = str(device.get("type", "")).lower()
@@ -119,6 +123,27 @@ class AqualinkDStatusSensor(AqualinkDEntity, SensorEntity):
     def native_value(self) -> Any:
         """Return the current status value."""
         return self.entity_description.value_fn(self.coordinator.data.status)
+
+
+class AqualinkDPumpAgeSensor(AqualinkDEntity, SensorEntity):
+    """Represent the acquisition age for one pump."""
+
+    _attr_native_unit_of_measurement = "s"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator, device_id: str) -> None:
+        super().__init__(coordinator, f"{device_id}_age")
+        self._device_id = device_id
+        pump = pump_status_records(coordinator.data.status)[device_id]
+        pump_name = pump.get("name") or coordinator.data.devices.get(device_id, {}).get("name", device_id)
+        self._attr_name = f"{pump_name} Data Age"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return seconds since the pump was last acquired."""
+        pump = pump_status_records(self.coordinator.data.status).get(self._device_id, {})
+        return _number(pump.get("age_seconds"))
 
 
 class AqualinkDValueSensor(AqualinkDEntity, SensorEntity):

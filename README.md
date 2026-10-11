@@ -22,7 +22,7 @@ The exact entities depend on the devices returned by AqualinkD.
 | Platform | Examples | Control required |
 |---|---|---|
 | Sensor | Air/pool/spa temperature, pH, ORP, salt PPM, SWG output, pump RPM/watts/GPM | No |
-| Sensor | Panel, chemistry, and salt-generator data age | No |
+| Sensor | Panel, chemistry, salt-generator, and per-pump data age | No |
 | Binary sensor | Controller ready and equipment on/off status | No |
 | Switch | Pumps, spa mode, lights, auxiliaries, blower, boost | Yes |
 | Climate | Pool heater and spa heater | Yes |

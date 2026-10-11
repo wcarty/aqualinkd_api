@@ -46,3 +46,15 @@ def normalize_devices(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
         if isinstance(device_id, str) and device_id:
             devices[device_id] = raw_device
     return devices
+
+
+def pump_status_records(status: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Index per-pump /api/status records by stable equipment ID."""
+    pumps: dict[str, dict[str, Any]] = {}
+    for key, value in status.items():
+        if not key.startswith("Pump_") or not isinstance(value, dict):
+            continue
+        device_id = value.get("id")
+        if isinstance(device_id, str) and device_id:
+            pumps[device_id] = value
+    return pumps

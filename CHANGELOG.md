@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- Added one diagnostic acquisition-age sensor for each pump reported by
+  `/api/status`.
+
 ## 1.0.1
 
 - Rebuilt GitHub Actions validation as separate Python and HACS workflows.
