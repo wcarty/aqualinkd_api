@@ -1,101 +1,67 @@
-# AqualinkD API
+# AqualinkD API for Home Assistant
 
-A Python-based Home Assistant integration for the [AqualinkD](https://github.com/aqualinkd/AqualinkD) daemon, providing local HTTP polling and control of Pentair pool equipment.
+A HACS-compatible custom integration that polls a local
+[AqualinkD](https://github.com/aqualinkd/AqualinkD) controller and exposes its
+pool status and equipment in Home Assistant.
 
-## 📋 Overview
+## Features
 
-This project provides a custom Home Assistant integration that communicates directly with the AqualinkD REST API to monitor and control pool equipment including heaters, pumps, lights, and more.
+- UI configuration; no YAML required
+- Local polling of `/api/devices` and `/api/status`
+- Pool, spa, air, pH, ORP, salt, pump, and source-freshness sensors
+- Read-only equipment status binary sensors
+- Optional equipment switches
+- Optional pool and spa heater climate entities
+- Optional salt-generator and freeze-protection setpoint controls
+- Home Assistant diagnostics and one controller device grouping all entities
 
-## 🎯 Quick Links
+Equipment controls are **disabled by default**. Enabling them creates entities
+that can operate physical pumps, lights, heaters, auxiliaries, and other
+equipment exposed by AqualinkD.
 
-- **Integration Documentation**: See [`custom_components/aqualinkd_api/README.md`](custom_components/aqualinkd_api/README.md) for detailed setup and usage instructions
-- **Home Assistant Integration**: Available for custom installation or via HACS
-- **License**: GNU General Public License v3.0
+## HACS installation
 
-## 🚀 Features
+1. In HACS, open **Integrations**.
+2. Select the menu and choose **Custom repositories**.
+3. Add `https://github.com/wcarty/aqualinkd_api` as an **Integration**.
+4. Install **AqualinkD API**.
+5. Restart Home Assistant.
+6. Go to **Settings > Devices & services > Add integration** and select
+   **AqualinkD API**.
 
-- **Local HTTP Polling**: Communicates directly with AqualinkD daemon on your local network
-- **Smart Device Discovery**: Automatically scans and merges data from multiple AqualinkD endpoints
-- **Climate Control**: Pool and spa heaters as native Home Assistant climate entities
-- **Interactive Controls**: Sliders for SWG percentage and VSP RPM adjustments
-- **Intelligent Telemetry**: Pump data (RPM, Watts, GPM) with zero-filtering when off
-- **Live Configuration**: Adjust polling intervals and timeouts from Home Assistant UI
+For the standard AqualinkD installation, use the controller IP address, port
+`80`, and scheme `http`.
 
-## 🚀 AI-Powered Development
+## Configuration
 
-This project leverages AI to maintain high code quality and security standards. 
+| Setting | Default | Description |
+|---|---:|---|
+| Host | required | AqualinkD IP address or hostname |
+| Port | `80` | AqualinkD HTTP port |
+| Scheme | `http` | `http` or `https` |
+| Polling interval | `10` seconds | Allowed range: 5-300 seconds |
+| Verify SSL | off | Verify certificates for HTTPS |
+| Enable controls | off | Add command-capable entities |
 
-- **AI Code Review**: Every Pull Request is reviewed by GPT-4o for logic, performance, and security.
-- **Automated Security**: Integrated CodeQL scanning and AI-driven vulnerability detection.
-- **Auto-Updates**: Dependabot keeps dependencies updated and secure.
+Polling interval and equipment controls can be changed from the integration's
+**Configure** dialog.
 
-For more details on our development practices, see [DEVELOPMENT.md](DEVELOPMENT.md).
+## Safety
 
-## 📁 Repository Structure
+Home Assistant commands are sent directly to AqualinkD and can operate physical
+pool equipment. Review and disable any entities that should not be manually
+controlled, especially chemical-dosing auxiliaries. The integration does not
+optimistically change entity state: after a command, it polls AqualinkD and
+shows the state reported by the controller.
 
+## Development
+
+```bash
+python -m pip install -r dev-requirements.txt
+ruff check .
+pytest -q
 ```
-aqualinkd_api/
-├── custom_components/
-│   └── aqualinkd_api/          # Home Assistant integration
-│       ├── manifest.json        # Integration metadata
-│       ├── const.py            # Configuration constants
-│       ├── __init__.py         # Integration initialization
-│       └── README.md           # Integration documentation
-├── README.md                   # This file
-└── LICENSE                     # GPLv3 license
-```
 
-## 🔧 Configuration Constants
+## License
 
-The integration supports the following configuration options (defined in `const.py`):
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `host` | - | IP address or hostname of AqualinkD server |
-| `port` | `8080` | Port number for AqualinkD API |
-| `scheme` | `http` | HTTP scheme (`http` or `https`) |
-| `poll_interval` | `5` | Polling interval in seconds (minimum 2 seconds) |
-| `verify_ssl` | `False` | Enable SSL certificate verification |
-| `filter_pump_zeros` | `True` | Filter pump telemetry zeros |
-| `zero_grace_period` | `60` | Grace period in seconds for pump zero-filtering |
-| `stale_timeout` | `300` | Data stale timeout in seconds |
-| `create_raw_sensors` | `False` | Create raw sensor entities for debugging |
-
-## 📦 Supported Platforms
-
-- `sensor` - Read-only telemetry and state sensors
-- `binary_sensor` - Binary state sensors
-- `switch` - Controllable relay switches
-- `number` - Numeric setpoint controls
-- `climate` - Climate entities for heaters
-
-## 🛠️ Installation
-
-### For Users
-
-See the [Integration README](custom_components/aqualinkd_api/README.md) for complete installation and setup instructions.
-
-### For Developers
-
-1. Clone this repository
-2. Copy `custom_components/aqualinkd_api` to your Home Assistant `custom_components` folder
-3. Restart Home Assistant
-4. Add the integration via **Settings > Devices & Services**
-
-## 📝 License
-
-This project is licensed under the GNU General Public License v3.0 - see the LICENSE file for details.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please ensure:
-- Code follows existing patterns in the integration
-- Documentation is updated accordingly
-- Changes are tested with actual AqualinkD hardware when possible
-
-## 📞 Support
-
-For issues, feature requests, or questions:
-1. Check the [Integration README](custom_components/aqualinkd_api/README.md) FAQ section
-2. Review existing GitHub issues
-3. Create a new issue with detailed information about your setup
+GPL-3.0. See [LICENSE](LICENSE).

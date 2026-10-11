@@ -3,22 +3,23 @@
     "step": {
       "user": {
         "title": "Connect to AqualinkD",
-        "description": "Enter your local AqualinkD API connection details.",
+        "description": "Connect to the local AqualinkD HTTP API. Equipment controls are disabled by default and can be enabled here or later in Options.",
         "data": {
           "host": "Host",
           "port": "Port",
           "scheme": "Scheme",
-          "poll_interval": "Polling interval in seconds",
-          "verify_ssl": "Verify SSL certificates",
-          "filter_pump_zeros": "Filter temporary pump zero telemetry",
-          "zero_grace_period": "Zero grace period in seconds",
-          "stale_timeout": "Telemetry stale timeout in seconds",
-          "create_raw_sensors": "Create raw diagnostic sensors"
+          "poll_interval": "Polling interval",
+          "verify_ssl": "Verify SSL certificate",
+          "enable_controls": "Enable equipment controls"
+        },
+        "data_description": {
+          "poll_interval": "Seconds between API polls (5-300).",
+          "enable_controls": "Adds switches, heater controls, and setpoint controls. Commands affect physical pool equipment."
         }
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to AqualinkD. Check host, port, and API availability."
+      "cannot_connect": "Could not validate both /api/status and /api/devices."
     },
     "abort": {
       "already_configured": "This AqualinkD instance is already configured."
@@ -27,14 +28,32 @@
   "options": {
     "step": {
       "init": {
-        "title": "AqualinkD API Options",
+        "title": "AqualinkD options",
+        "description": "Changing these options reloads the integration.",
         "data": {
-          "poll_interval": "Polling interval in seconds",
-          "stale_timeout": "Telemetry stale timeout in seconds",
-          "filter_pump_zeros": "Filter temporary pump zero telemetry",
-          "zero_grace_period": "Zero grace period in seconds",
-          "create_raw_sensors": "Create raw diagnostic sensors"
+          "poll_interval": "Polling interval",
+          "enable_controls": "Enable equipment controls"
+        },
+        "data_description": {
+          "poll_interval": "Seconds between API polls (5-300).",
+          "enable_controls": "Adds entities that can switch physical equipment and change heater, freeze-protection, and salt-generator setpoints."
         }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "controller_status": {
+        "name": "Controller Status"
+      },
+      "panel_age": {
+        "name": "Panel Data Age"
+      },
+      "chemistry_age": {
+        "name": "Chemistry Data Age"
+      },
+      "swg_age": {
+        "name": "Salt Generator Data Age"
       }
     }
   }

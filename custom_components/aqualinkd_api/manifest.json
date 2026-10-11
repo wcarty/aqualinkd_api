@@ -1,12 +1,12 @@
 {
   "domain": "aqualinkd_api",
   "name": "AqualinkD API",
-  "codeowners": [],
+  "codeowners": ["@wcarty"],
   "config_flow": true,
-  "dependencies": [],
-  "documentation": "https://github.com/aqualinkd/AqualinkD/wiki",
+  "documentation": "https://github.com/wcarty/aqualinkd_api",
   "integration_type": "hub",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/wcarty/aqualinkd_api/issues",
   "requirements": [],
-  "version": "0.1.0"
+  "version": "1.0.0"
 }

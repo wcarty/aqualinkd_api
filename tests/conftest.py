@@ -3,6 +3,7 @@
 This adds the nearest ancestor directory containing `custom_components`
 to `sys.path` so tests can `import custom_components.aqualinkd_api...`.
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,6 +30,9 @@ def _create_ha_package(types_mod):
         def __init__(self, *args, **kwargs):
             pass
 
+        def __class_getitem__(cls, item):
+            return cls
+
     cfg.ConfigEntry = ConfigEntry
     ha.config_entries = cfg
 
@@ -40,7 +44,11 @@ def _add_const_core_helpers(types_mod):
     const_mod = types_mod.ModuleType("homeassistant.const")
 
     class Platform(str):
-        pass
+        BINARY_SENSOR = "binary_sensor"
+        CLIMATE = "climate"
+        NUMBER = "number"
+        SENSOR = "sensor"
+        SWITCH = "switch"
 
     const_mod.Platform = Platform
     sys.modules["homeassistant.const"] = const_mod

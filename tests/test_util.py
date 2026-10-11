@@ -1,17 +1,40 @@
-from custom_components.aqualinkd_api.util import flatten_devices, slugify
+from custom_components.aqualinkd_api.util import (
+    as_bool,
+    as_float,
+    normalize_devices,
+)
 
 
-def test_slugify_basic():
-    assert slugify("Pool Heater") == "pool_heater"
-    assert slugify("/Path/To/Value") == "path_to_value"
+def test_value_conversions():
+    assert as_bool("enabled") is True
+    assert as_bool("off") is False
+    assert as_bool("unknown") is None
+    assert as_float("7.5") == 7.5
+    assert as_float("-999") == -999
+    assert as_float("unknown") is None
 
 
-def test_flatten_devices_with_containers():
-    data = {
-        "leds": {"Aux_3": "off"},
-        "devices": [{"type": "switch", "id": "Aux_3", "name": "Spill Over", "state": "off"}],
+def test_normalize_devices_uses_stable_ids():
+    payload = {
+        "devices": [
+            {
+                "type": "switch",
+                "id": "Aux_1",
+                "name": "Pool Light",
+                "state": "off",
+            },
+            {
+                "type": "value",
+                "id": "CHEM/pH",
+                "name": "Water Chemistry pH",
+                "value": "7.5",
+            },
+            {"name": "Missing ID"},
+            "invalid",
+        ]
     }
-    flat = flatten_devices(data)
-    # should contain an entry for the named device and the container item
-    assert any(isinstance(k, str) for k in flat.keys())
-    assert any(d.get("id") == "Aux_3" for d in flat.values())
+
+    devices = normalize_devices(payload)
+
+    assert set(devices) == {"Aux_1", "CHEM/pH"}
+    assert devices["CHEM/pH"]["value"] == "7.5"

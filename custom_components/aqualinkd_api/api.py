@@ -1,93 +1,91 @@
+"""HTTP client for AqualinkD."""
+
 from __future__ import annotations
 
-import logging
 from typing import Any
 from urllib.parse import quote
 
 import aiohttp
 
-_LOGGER = logging.getLogger(__name__)
+from .const import DEFAULT_SCHEME, DEFAULT_VERIFY_SSL
+
 
 class AqualinkDApiError(Exception):
     """Base AqualinkD API error."""
 
+
 class AqualinkDApiClient:
+    """Small async client for the local AqualinkD HTTP API."""
+
     def __init__(
         self,
         session: aiohttp.ClientSession,
         host: str,
         port: int,
-        scheme: str = "http",
+        scheme: str = DEFAULT_SCHEME,
+        *,
+        verify_ssl: bool = DEFAULT_VERIFY_SSL,
         timeout: int = 10,
-        verify_ssl: bool = False,
     ) -> None:
         self._session = session
         self.host = host
         self.port = port
         self.scheme = scheme
-        self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.verify_ssl = verify_ssl
+        self._timeout = aiohttp.ClientTimeout(total=timeout)
 
     @property
     def base_url(self) -> str:
+        """Return the configured controller URL."""
         return f"{self.scheme}://{self.host}:{self.port}"
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
         url = f"{self.base_url}{path}"
-        _LOGGER.debug("Requesting %s %s", method, url)
         try:
             async with self._session.request(
                 method,
                 url,
-                timeout=self.timeout,
+                timeout=self._timeout,
                 ssl=self.verify_ssl if self.scheme == "https" else None,
                 **kwargs,
-            ) as resp:
-                text = await resp.text()
-                _LOGGER.debug("Response from %s: HTTP %s: %s", url, resp.status, text[:500])
-                if resp.status >= 400:
-                    raise AqualinkDApiError(f"{method} {url} returned HTTP {resp.status}: {text[:300]}")
+            ) as response:
+                body = await response.text()
+                if response.status >= 400:
+                    raise AqualinkDApiError(f"{method} {path} returned HTTP {response.status}: {body[:200]}")
                 if method == "GET":
                     try:
-                        return await resp.json(content_type=None)
-                    except Exception as exc:
-                        raise AqualinkDApiError(f"Invalid JSON from {url}: {exc}") from exc
-                return text
-        except (aiohttp.ClientError, TimeoutError) as exc:
-            raise AqualinkDApiError(f"Error calling {url}: {exc}") from exc
+                        return await response.json(content_type=None)
+                    except (ValueError, TypeError) as err:
+                        raise AqualinkDApiError(f"{path} returned invalid JSON") from err
+                return body
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise AqualinkDApiError(f"Request to {path} failed: {err}") from err
 
-    async def _request_json(self, path: str) -> dict[str, Any] | list[Any]:
-        data = await self._request("GET", path)
-        if not isinstance(data, (dict, list)):
-            raise AqualinkDApiError(f"{path} did not return a JSON object or list")
+    async def get_devices(self) -> dict[str, Any]:
+        """Fetch and validate the equipment payload."""
+        data = await self._request("GET", "/api/devices")
+        if not isinstance(data, dict) or not isinstance(data.get("devices"), list):
+            raise AqualinkDApiError("/api/devices returned an unexpected payload")
         return data
 
-    async def get_devices(self) -> dict[str, Any] | list[Any]:
-        return await self._request_json("/api/devices")
+    async def get_status(self) -> dict[str, Any]:
+        """Fetch and validate controller status."""
+        data = await self._request("GET", "/api/status")
+        if not isinstance(data, dict):
+            raise AqualinkDApiError("/api/status returned an unexpected payload")
+        return data
 
-    async def get_status(self) -> dict[str, Any] | list[Any]:
-        return await self._request_json("/api/status")
-
-    async def get_status_json(self) -> dict[str, Any] | list[Any]:
-        return await self._request_json("/status.json")
-
-    async def get_config_json(self) -> dict[str, Any] | list[Any]:
-        return await self._request_json("/config.json")
-
-    async def get_schedules(self) -> dict[str, Any] | list[Any]:
-        return await self._request_json("/api/schedules")
-
-    async def set_device(self, device_id: str, state: int) -> None:
-        """Set a device state (1 for on, 0 for off) using API v2.0."""
-        # PUT /api/Filter_Pump/set with value=1
-        dev = quote(device_id, safe="")
-        # API v2.0 accepts form-post value=1
-        await self._request("PUT", f"/api/{dev}/set", data={"value": state})
+    async def set_device(self, device_id: str, state: bool) -> None:
+        """Turn an AqualinkD equipment item on or off."""
+        path_id = quote(device_id, safe="/")
+        await self._request("PUT", f"/api/{path_id}/set", data={"value": 1 if state else 0})
 
     async def set_attribute(self, device_id: str, attribute: str, value: str | int | float) -> None:
-        """Set an attribute value (like temperature) using API v2.0."""
-        # PUT /api/Pool_Heater/setpoint/set with value=85
-        dev = quote(device_id, safe="")
-        attr = quote(attribute, safe="")
-        # API v2.0 accepts form-post value=X
-        await self._request("PUT", f"/api/{dev}/{attr}/set", data={"value": value})
+        """Set an AqualinkD equipment attribute."""
+        path_id = quote(device_id, safe="/")
+        path_attribute = quote(attribute, safe="")
+        await self._request(
+            "PUT",
+            f"/api/{path_id}/{path_attribute}/set",
+            data={"value": value},
+        )

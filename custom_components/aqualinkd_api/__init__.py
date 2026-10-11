@@ -1,113 +1,65 @@
+"""AqualinkD API integration."""
+
 from __future__ import annotations
 
-import logging
 from datetime import timedelta
 
-try:
-    from homeassistant.config_entries import ConfigEntry
-    from homeassistant.const import Platform
-    from homeassistant.core import HomeAssistant
-    from homeassistant.helpers.aiohttp_client import async_get_clientsession
-except Exception:  # pragma: no cover - fallback for test/CI environments
-    class ConfigEntry:  # type: ignore[no-redef]
-        def __init__(self, *args, **kwargs):
-            pass
-
-    class Platform(str):
-        pass
-
-    class HomeAssistant:  # minimal placeholder for typing in tests
-        pass
-
-    async def async_get_clientsession(hass: HomeAssistant, verify_ssl: bool = True):
-        return None
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import AqualinkDApiClient
 from .const import (
-    CONF_CREATE_RAW_SENSORS,
-    CONF_FILTER_PUMP_ZEROS,
     CONF_HOST,
     CONF_POLL_INTERVAL,
     CONF_PORT,
     CONF_SCHEME,
-    CONF_STALE_TIMEOUT,
     CONF_VERIFY_SSL,
-    CONF_ZERO_GRACE_PERIOD,
-    DEFAULT_CREATE_RAW_SENSORS,
-    DEFAULT_FILTER_PUMP_ZEROS,
     DEFAULT_POLL_INTERVAL,
-    DEFAULT_STALE_TIMEOUT,
     DEFAULT_VERIFY_SSL,
-    DEFAULT_ZERO_GRACE_PERIOD,
-    DOMAIN,
     PLATFORMS,
+)
+from .const import (
+    DOMAIN as DOMAIN,
 )
 from .coordinator import AqualinkDDataUpdateCoordinator
 
-_LOGGER = logging.getLogger(__name__)
+AqualinkDConfigEntry = ConfigEntry[AqualinkDDataUpdateCoordinator]
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    _LOGGER.debug("Setting up AqualinkD API entry: %s", entry.data[CONF_HOST])
-    session = async_get_clientsession(hass, verify_ssl=entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL))
+
+async def async_setup_entry(hass: HomeAssistant, entry: AqualinkDConfigEntry) -> bool:
+    """Set up AqualinkD from a config entry."""
+    verify_ssl = entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)
     client = AqualinkDApiClient(
-        session=session,
-        host=entry.data[CONF_HOST],
-        port=entry.data[CONF_PORT],
-        scheme=entry.data[CONF_SCHEME],
-        verify_ssl=entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
-    )
-    poll = entry.options.get(
-        CONF_POLL_INTERVAL, entry.data.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
+        async_get_clientsession(hass, verify_ssl=verify_ssl),
+        entry.data[CONF_HOST],
+        entry.data[CONF_PORT],
+        entry.data[CONF_SCHEME],
+        verify_ssl=verify_ssl,
     )
     coordinator = AqualinkDDataUpdateCoordinator(
-        hass=hass,
-        client=client,
-        update_interval=timedelta(seconds=poll),
-        filter_pump_zeros=
-            entry.options.get(
-                CONF_FILTER_PUMP_ZEROS,
-                entry.data.get(CONF_FILTER_PUMP_ZEROS, DEFAULT_FILTER_PUMP_ZEROS),
-            ),
-        zero_grace_period=
-            entry.options.get(
-                CONF_ZERO_GRACE_PERIOD,
-                entry.data.get(CONF_ZERO_GRACE_PERIOD, DEFAULT_ZERO_GRACE_PERIOD),
-            ),
-        stale_timeout=
-            entry.options.get(
-                CONF_STALE_TIMEOUT,
-                entry.data.get(CONF_STALE_TIMEOUT, DEFAULT_STALE_TIMEOUT),
-            ),
-        create_raw_sensors=
-            entry.options.get(
-                CONF_CREATE_RAW_SENSORS,
-                entry.data.get(CONF_CREATE_RAW_SENSORS, DEFAULT_CREATE_RAW_SENSORS),
-            ),
+        hass,
+        client,
+        timedelta(
+            seconds=entry.options.get(
+                CONF_POLL_INTERVAL,
+                entry.data.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL),
+            )
+        ),
     )
-    _LOGGER.debug("Performing first refresh for AqualinkD coordinator")
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except Exception as exc:
-        _LOGGER.warning("First refresh failed for AqualinkD, will retry in background: %s", exc)
+    await coordinator.async_config_entry_first_refresh()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-
-    _LOGGER.debug("Forwarding setups for platforms: %s", PLATFORMS)
-    await hass.config_entries.async_forward_entry_setups(
-        entry, [Platform(p) for p in PLATFORMS]
-    )
-
-    entry.async_on_unload(entry.add_update_listener(async_update_options))
-
-    _LOGGER.info("Successfully set up AqualinkD API integration for %s", entry.data[CONF_HOST])
+    entry.runtime_data = coordinator
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
-async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Update options."""
+
+async def _async_update_listener(hass: HomeAssistant, entry: AqualinkDConfigEntry) -> None:
+    """Reload the entry when options change."""
     await hass.config_entries.async_reload(entry.entry_id)
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, [Platform(p) for p in PLATFORMS])
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
-    return unload_ok
+
+async def async_unload_entry(hass: HomeAssistant, entry: AqualinkDConfigEntry) -> bool:
+    """Unload an AqualinkD config entry."""
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

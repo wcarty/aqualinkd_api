@@ -1,28 +1,64 @@
+"""Binary sensors for AqualinkD equipment status."""
+
 from __future__ import annotations
 
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from . import AqualinkDConfigEntry
 from .entity import AqualinkDEntity
+from .util import as_bool
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-    entities: list[BinarySensorEntity] = []
-    for pump_name in coordinator.data.pump_filtered:
-        entities.append(PumpTelemetryStaleBinarySensor(coordinator, pump_name))
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: AqualinkDConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up read-only equipment status entities."""
+    coordinator = entry.runtime_data
+    entities: list[BinarySensorEntity] = [AqualinkDControllerReadyBinarySensor(coordinator)]
+
+    for device_id, device in coordinator.data.devices.items():
+        if device.get("type") in {
+            "switch",
+            "setpoint_swg",
+            "setpoint_thermo",
+        }:
+            entities.append(AqualinkDEquipmentBinarySensor(coordinator, device_id))
+
     async_add_entities(entities)
 
-class PumpTelemetryStaleBinarySensor(AqualinkDEntity, BinarySensorEntity):
-    _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
-    def __init__(self, coordinator, device_name: str) -> None:
-        super().__init__(coordinator, device_name, "telemetry_stale")
-        self._attr_name = f"{device_name} Telemetry Stale"
+class AqualinkDControllerReadyBinarySensor(AqualinkDEntity, BinarySensorEntity):
+    """Report whether the daemon says it is ready."""
+
+    _attr_name = "Controller Ready"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator, "controller_ready")
 
     @property
     def is_on(self) -> bool:
-        return bool(self.coordinator.data.pump_filtered.get(self.device_name, {}).get("stale", False))
+        """Return true when AqualinkD is ready."""
+        return self.coordinator.data.status.get("status") == "Ready"
+
+
+class AqualinkDEquipmentBinarySensor(AqualinkDEntity, BinarySensorEntity):
+    """Represent read-only equipment state."""
+
+    def __init__(self, coordinator, device_id: str) -> None:
+        super().__init__(coordinator, f"{device_id}_status")
+        self._device_id = device_id
+        self._attr_name = f"{coordinator.data.devices[device_id].get('name', device_id)} Status"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return the reported equipment state."""
+        device = self.coordinator.data.devices.get(self._device_id, {})
+        return as_bool(device.get("state", device.get("status")))
