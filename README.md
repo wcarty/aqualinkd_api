@@ -1,5 +1,9 @@
 # AqualinkD API for Home Assistant
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=wcarty&repository=aqualinkd_api&category=integration)
+[![HACS](https://github.com/wcarty/aqualinkd_api/actions/workflows/hacs.yml/badge.svg)](https://github.com/wcarty/aqualinkd_api/actions/workflows/hacs.yml)
+[![Validate](https://github.com/wcarty/aqualinkd_api/actions/workflows/validate.yml/badge.svg)](https://github.com/wcarty/aqualinkd_api/actions/workflows/validate.yml)
+
 A HACS-compatible custom integration that polls a local
 [AqualinkD](https://github.com/aqualinkd/AqualinkD) controller and exposes its
 pool status and equipment in Home Assistant.
@@ -34,13 +38,20 @@ equipment exposed by AqualinkD.
 
 ## HACS installation
 
+Click the button below to open this repository directly in your Home Assistant instance:
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=wcarty&repository=aqualinkd_api&category=integration)
+
+Or add it manually:
+
 1. In HACS, open **Integrations**.
 2. Select the menu and choose **Custom repositories**.
 3. Add `https://github.com/wcarty/aqualinkd_api` as an **Integration**.
 4. Install **AqualinkD API**.
 5. Restart Home Assistant.
-6. Go to **Settings > Devices & services > Add integration** and select
-   **AqualinkD API**.
+6. After restarting, click below to add the integration (or go to **Settings > Devices & services > Add integration** and select **AqualinkD API**):
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=aqualinkd_api)
 
 For the standard AqualinkD installation, use the controller IP address, port
 `80`, and scheme `http`.
