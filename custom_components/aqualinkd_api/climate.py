@@ -48,18 +48,18 @@ class AqualinkDClimate(AqualinkDEntity, ClimateEntity):
         self._device_id = device_id
         self._attr_name = coordinator.data.devices[device_id].get("name", device_id)
         units = coordinator.data.status.get("temp_units", "f").lower()
-        self._attr_temperature_unit = UnitOfTemperature.CELSIUS if units == "c" else UnitOfTemperature.FAHRENHEIT
+        self._attr_native_temperature_unit = UnitOfTemperature.CELSIUS if units == "c" else UnitOfTemperature.FAHRENHEIT
         self._attr_min_temp = 4 if units == "c" else 40
         self._attr_max_temp = 40 if units == "c" else 104
 
     @property
-    def current_temperature(self) -> float | None:
+    def native_current_temperature(self) -> float | None:
         """Return the current water temperature."""
         value = as_float(self.coordinator.data.devices.get(self._device_id, {}).get("value"))
         return None if value is None or value <= -999 else value
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """Return the configured set point."""
         return as_float(self.coordinator.data.devices.get(self._device_id, {}).get("spvalue"))
 

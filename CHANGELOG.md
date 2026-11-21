@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+
+- Migrated `AqualinkDClimate` to Home Assistant 2026.11 native temperature
+  properties (`_attr_native_temperature_unit`, `native_current_temperature`,
+  and `native_target_temperature`) to eliminate 2027.11 deprecation warnings.
+
 ## 1.0.2
 
 - Added one diagnostic acquisition-age sensor for each pump reported by
